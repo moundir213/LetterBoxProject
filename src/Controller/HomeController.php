@@ -12,7 +12,7 @@ final class HomeController extends AbstractController
     public function index(): Response
     {
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            return $this->redirectToRoute('app_anime');
+            return $this->redirectToRoute('all_anime');
         }
 
         return $this->redirectToRoute('app_login');
