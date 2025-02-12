@@ -9,12 +9,23 @@
                 <img src="{{ anime.picture }}" class="img-fluid rounded" alt="{{ anime.title }}">
             </div>
             <div class="col-md-8">
-                <h1 class="display-4">{{ anime.title }}</h1>
+                <h1 class="display-4">
+                    {{ anime.title }}
+                </h1>
+                {% if anime.stars > 0 %}
+                <h6>
+                    {% for i in 1..anime.stars %}
+                        ⭐
+                    {% endfor %}
+                </h6>
+                {% endif %}
                 <p class="text-muted">ID: {{ anime.id }}</p>
+                <p>{{ anime.description }}</p>
+                <a href="{{ path('all_anime', {id: anime.id}) }}" class="btn btn-primary">Retour à la liste</a>
                 {% if isAuthenticated == true %}
                     {% if anime.isLiked == false %}
-                        <form action="{{ path('anime_like', {id: anime.id}) }}" method="post">
-                            <button type="submit" class="btn btn-success mt-3">
+                        <form class="like-form" action="{{ path('anime_like', {id: anime.id}) }}" method="post">
+                            <button type="submit" class="btn btn-success">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                      class="bi bi-heart-fill" viewBox="0 0 16 16">
                                     <path fill-rule="evenodd"
@@ -24,8 +35,8 @@
                             </button>
                         </form>
                     {% else %}
-                        <form action="{{ path('anime_dislike', {id: anime.id}) }}" method="post">
-                            <button type="submit" class="btn btn-danger mt-3">
+                        <form class="like-form" action="{{ path('anime_dislike', {id: anime.id}) }}" method="post">
+                            <button type="submit" class="btn btn-danger">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                      class="bi bi-heartbreak-fill" viewBox="0 0 16 16">
                                     <path d="M8.931.586 7 3l1.5 4-2 3L8 15C22.534 5.396 13.757-2.21 8.931.586M7.358.77 5.5 3 7 7l-1.5 3 1.815 4.537C-6.533 4.96 2.685-2.467 7.358.77"/>
@@ -35,7 +46,43 @@
                         </form>
                     {% endif %}
                 {% endif %}
-                <a href="{{ path('all_anime', {id: anime.id}) }}" class="btn btn-primary mt-3">Retour à la liste</a>
+
+                {% if isAuthenticated == true %}
+                    <div class="mt-4">
+                        <h3>Noter cet anime</h3>
+                        <form action="{{ path('anime_rate', {id: anime.id}) }}" method="post">
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                            <h3><label for="rating">⭐</label></h3>
+                            <input type="number" id="rating" name="rating" class="form-control w-auto" min="0" max="5" step="1">
+                            </div>
+                            <button type="submit" class="btn btn-warning mt-2">Soumettre</button>
+                        </form>
+                    </div>
+                    <div class="mt-4">
+                        <h3>Ajouter un commentaire</h3>
+                        <form action="{{ path('anime_comment', {id: anime.id}) }}" method="post">
+                            <div class="form-group">
+                                <textarea name="comment_body" class="form-control" rows="3" placeholder="Écrivez votre commentaire ici..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-2">Envoyer</button>
+                        </form>
+                    </div>
+                {% endif %}
+                <div class="mt-4">
+                    <h3>Commentaires</h3>
+                    {% if anime.comments is not empty %}
+                        <ul class="list-group">
+                            {% for comment in anime.comments %}
+                                <li class="list-group-item">
+                                    <strong>{{ comment.author }}</strong> - <small class="text-muted">{{ comment.created_at|date('d/m/Y H:i') }}</small>
+                                    <p>{{ comment.content }}</p>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Aucun commentaire pour le moment.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

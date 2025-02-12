@@ -126,4 +126,14 @@ class Anime
 
         return $this;
     }
+
+    public function getStarsOfUser(User|null $user) : int {
+        if (!$user) return -1;
+        foreach ($this->userStars as $star) {
+            if ($star->getUser() === $user) {
+                return $star->getStars();
+            }
+        }
+        return -1;
+    }
 }

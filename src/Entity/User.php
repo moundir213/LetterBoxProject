@@ -165,6 +165,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->starredAnimes;
     }
 
+    public function getStarredAnime(Anime $anime): StarredAnime|null {
+        foreach ($this->starredAnimes as $starredAnime) {
+            if ($starredAnime->getAnime() === $anime) {
+                return $starredAnime;
+            }
+        }
+        return null;
+    }
+
     public function addStarredAnime(StarredAnime $starredAnime): static
     {
         if (!$this->starredAnimes->contains($starredAnime)) {

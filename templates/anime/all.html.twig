@@ -5,6 +5,19 @@
 {% block body %}
 
     <div class="container mt-4">
+        <nav class="navbar navbar-light bg-light">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">AnimeBoxd</a>
+                <div class="d-flex">
+                    {% if isAuthenticated %}
+                        <a href="{{ path('app_logout') }}" class="btn btn-outline-danger">Déconnexion</a>
+                    {% else %}
+                        <a href="{{ path('app_login') }}" class="btn btn-outline-primary">Connexion</a>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+
         <h1 class="text-center mb-4">Liste des Animes</h1>
 
         <div class="row">
@@ -14,6 +27,14 @@
                         <img src="{{ anime.picture }}" class="card-img-top" alt="{{ anime.title }}">
                         <div class="card-body">
                             <h5 class="card-title">{{ anime.title }}</h5>
+                            {% if anime.stars > 0 %}
+                                <div class="mb-2">
+                                    {% for i in 1..anime.stars %}
+                                        ⭐
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
                             <a href="{{ path('one_anime', {id: anime.id}) }}" class="btn btn-primary">Voir plus</a>
                             {% if isAuthenticated == true %}
                                 {% if anime.isLiked == false %}

@@ -2,22 +2,31 @@
 
 namespace App\Controller;
 
+use App\Entity\StarredAnime;
 use App\Entity\User;
 use App\Repository\AnimeRepository;
+use App\Repository\UserRepository;
+use App\Service\CommentService;
+use App\Service\DescriptionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Config\Framework\RequestConfig;
 
 final class AnimeController extends AbstractController
 {
     private AnimeRepository $animeRepository;
+    private UserRepository $userRepository;
+    private CommentService $commentService;
+    private DescriptionService $descriptionService;
 
-    public function __construct(AnimeRepository $animeRepository)
+    public function __construct(AnimeRepository $animeRepository, UserRepository $userRepository, CommentService $commentService, DescriptionService $descriptionService)
     {
         $this->animeRepository = $animeRepository;
+        $this->userRepository = $userRepository;
+        $this->commentService = $commentService;
+        $this->descriptionService = $descriptionService;
     }
 
     #[Route('/anime', name: 'all_anime')]
@@ -27,12 +36,14 @@ final class AnimeController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $animesData = [];
+
         foreach ($animes as $anime) {
             $animesData[] = [
                 'id' => $anime->getId(),
                 'title' => $anime->getTitle(),
                 'picture' => $anime->getPicture(),
-                'isLiked' => $anime->getUsersLiking()->contains($user)
+                'isLiked' => $anime->getUsersLiking()->contains($user),
+                'stars' => min(5,$anime->getStarsOfUser($user))
             ];
         }
         return $this->render('anime/all.html.twig', [
@@ -53,13 +64,31 @@ final class AnimeController extends AbstractController
             throw $this->createNotFoundException('Anime non trouvé');
         }
 
+        $comments = $this->commentService->getCommentsByAnime($id);
+        $commentsData = [];
+
+        foreach ($comments as $comment) {
+            /** @var User $author */
+            $author = $this->userRepository->find(intval($comment['author']));
+            $commentsData[] = [
+                'id' => $comment['id'],
+                'author' => $author->getEmail(),
+                'content' => $comment['content'],
+                'created_at' => $comment['created_at'],
+            ];
+        }
+
+        $animeDescription = $this->descriptionService->getShortDescriptionForAnime($anime->getTitle());
+
         $animeData = [
             'id' => $anime->getId(),
             'title' => $anime->getTitle(),
+            'description' => $animeDescription,
             'picture' => $anime->getPicture(),
-            'isLiked' => $anime->getUsersLiking()->contains($user)
+            'isLiked' => $anime->getUsersLiking()->contains($user),
+            'comments' => $commentsData,
+            'stars' => min(5,$anime->getStarsOfUser($user))
         ];
-
         return $this->render('anime/one.html.twig', [
             'anime' => $animeData,
             'isAuthenticated' => $this->getUser() !== null,
@@ -105,5 +134,51 @@ final class AnimeController extends AbstractController
 
         $route = $request->headers->get('referer');
         return $this->redirect($route);
+    }
+
+    #[Route('/anime/{id}/comment', name: 'anime_comment', methods: ['POST'])]
+    public function addCommentOnAnime(Request $request, int $id): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $body = $request->get('comment_body');
+
+        if (!$this->animeRepository->find($id)) {
+            throw $this->createNotFoundException('Anime non trouvé');
+        }
+
+        $this->commentService->addCommentOnAnime($id, $body, $user->getId());
+
+        return $this->redirectToRoute('one_anime', ['id' => $id]);
+    }
+
+    #[Route('/anime/{id}/rate', name: 'anime_rate', methods: ['POST'])]
+    public function starAnime(EntityManagerInterface $entityManager,Request $request, int $id): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $stars = $request->get('rating');
+        $anime = $this->animeRepository->find($id);
+
+        if (!$anime) {
+            throw $this->createNotFoundException('Anime non trouvé');
+        }
+
+        $starredAnime = $user->getStarredAnime($anime);
+
+        if(!$starredAnime) {
+            $starredAnime = new StarredAnime();
+            $starredAnime->setUser($user);
+            $starredAnime->setAnime($anime);
+        }
+
+        $starredAnime->setStars($stars);
+        $user->addStarredAnime($starredAnime);
+
+        $entityManager->persist($starredAnime);
+        $entityManager->persist($user);
+        $entityManager->flush();
+
+        return $this->redirectToRoute('one_anime', ['id' => $id]);
     }
 }
