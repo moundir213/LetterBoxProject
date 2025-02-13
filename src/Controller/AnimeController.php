@@ -15,6 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+/**
+ * Controller responsible for handling anime-related operations.
+ */
 final class AnimeController extends AbstractController
 {
     private AnimeRepository $animeRepository;
@@ -22,6 +25,9 @@ final class AnimeController extends AbstractController
     private CommentService $commentService;
     private DescriptionService $descriptionService;
 
+    /**
+     * Constructor to inject dependencies.
+     */
     public function __construct(AnimeRepository $animeRepository, UserRepository $userRepository, CommentService $commentService, DescriptionService $descriptionService)
     {
         $this->animeRepository = $animeRepository;
@@ -30,6 +36,9 @@ final class AnimeController extends AbstractController
         $this->descriptionService = $descriptionService;
     }
 
+    /**
+     * Displays all available anime.
+     */
     #[Route('/anime', name: 'all_anime')]
     public function showAllAnimes(): Response
     {
@@ -44,18 +53,25 @@ final class AnimeController extends AbstractController
                 'title' => $anime->getTitle(),
                 'picture' => $anime->getPicture(),
                 'isLiked' => $anime->getUsersLiking()->contains($user),
-                'stars' => min(5,$anime->getStarsOfUser($user))
+                'stars' => min(5, $anime->getStarsOfUser($user))
             ];
         }
+
         return $this->render('anime/all.html.twig', [
             'animes' => $animesData,
             'isAuthenticated' => $this->getUser() !== null,
         ]);
     }
 
+    /**
+     * Displays anime liked by the authenticated user.
+     * 
+     * @IsGranted ensures only authenticated users can access this route.
+     */
     #[Route('/anime/liked', name: 'liked_anime')]
     #[IsGranted('ROLE_USER')]
-    public function showLikedAnimes(): Response {
+    public function showLikedAnimes(): Response
+    {
         /** @var User $user */
         $user = $this->getUser();
         $animes = $user->getLikedAnimes();
@@ -67,15 +83,19 @@ final class AnimeController extends AbstractController
                 'title' => $anime->getTitle(),
                 'picture' => $anime->getPicture(),
                 'isLiked' => $anime->getUsersLiking()->contains($user),
-                'stars' => min(5,$anime->getStarsOfUser($user))
+                'stars' => min(5, $anime->getStarsOfUser($user))
             ];
         }
+
         return $this->render('anime/like.html.twig', [
             'animes' => $animesData,
             'isAuthenticated' => $this->getUser() !== null,
         ]);
     }
 
+    /**
+     * Displays a single anime by its ID.
+     */
     #[Route('/anime/{id}', name: 'one_anime')]
     public function showAnime(int $id): Response
     {
@@ -85,9 +105,10 @@ final class AnimeController extends AbstractController
         $user = $this->getUser();
 
         if (!$anime) {
-            throw $this->createNotFoundException('Anime non trouvé');
+            throw $this->createNotFoundException('Anime not found');
         }
 
+        // Retrieve comments for the anime
         $comments = $this->commentService->getCommentsByAnime($id);
         $commentsData = [];
 
@@ -102,6 +123,7 @@ final class AnimeController extends AbstractController
             ];
         }
 
+        // Fetch a short description for the anime
         $animeDescription = $this->descriptionService->getShortDescriptionForAnime($anime->getTitle());
 
         $animeData = [
@@ -111,23 +133,26 @@ final class AnimeController extends AbstractController
             'picture' => $anime->getPicture(),
             'isLiked' => $anime->getUsersLiking()->contains($user),
             'comments' => $commentsData,
-            'stars' => min(5,$anime->getStarsOfUser($user))
+            'stars' => min(5, $anime->getStarsOfUser($user))
         ];
+
         return $this->render('anime/one.html.twig', [
             'anime' => $animeData,
             'isAuthenticated' => $this->getUser() !== null,
         ]);
     }
 
-
-    #[Route('/anime/{id}/like', name: 'anime_like',methods: ['POST'])]
+    /**
+     * Allows a user to like an anime.
+     */
+    #[Route('/anime/{id}/like', name: 'anime_like', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function likeAnime(int $id, EntityManagerInterface $entityManager, Request $request): Response
     {
         $anime = $this->animeRepository->find($id);
 
         if (!$anime) {
-            throw $this->createNotFoundException('Anime non trouvé');
+            throw $this->createNotFoundException('Anime not found');
         }
 
         /** @var User $user */
@@ -137,11 +162,12 @@ final class AnimeController extends AbstractController
         $entityManager->persist($user);
         $entityManager->flush();
 
-        $route = $request->headers->get('referer');
-
-        return $this->redirect($route);
+        return $this->redirect($request->headers->get('referer'));
     }
 
+    /**
+     * Allows a user to remove their like from an anime.
+     */
     #[Route('/anime/{id}/dislike', name: 'anime_dislike', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function disLikeAnime(int $id, EntityManagerInterface $entityManager, Request $request): Response
@@ -149,7 +175,7 @@ final class AnimeController extends AbstractController
         $anime = $this->animeRepository->find($id);
 
         if (!$anime) {
-            throw $this->createNotFoundException('Anime non trouvé');
+            throw $this->createNotFoundException('Anime not found');
         }
 
         /** @var User $user */
@@ -159,10 +185,12 @@ final class AnimeController extends AbstractController
         $entityManager->persist($user);
         $entityManager->flush();
 
-        $route = $request->headers->get('referer');
-        return $this->redirect($route);
+        return $this->redirect($request->headers->get('referer'));
     }
 
+    /**
+     * Adds a comment to an anime.
+     */
     #[Route('/anime/{id}/comment', name: 'anime_comment', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function addCommentOnAnime(Request $request, int $id): Response
@@ -172,7 +200,7 @@ final class AnimeController extends AbstractController
         $body = $request->get('comment_body');
 
         if (!$this->animeRepository->find($id)) {
-            throw $this->createNotFoundException('Anime non trouvé');
+            throw $this->createNotFoundException('Anime not found');
         }
 
         $this->commentService->addCommentOnAnime($id, $body, $user->getId());
@@ -180,9 +208,12 @@ final class AnimeController extends AbstractController
         return $this->redirectToRoute('one_anime', ['id' => $id]);
     }
 
+    /**
+     * Allows a user to rate an anime with stars.
+     */
     #[Route('/anime/{id}/rate', name: 'anime_rate', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
-    public function starAnime(EntityManagerInterface $entityManager,Request $request, int $id): Response
+    public function starAnime(EntityManagerInterface $entityManager, Request $request, int $id): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -190,12 +221,13 @@ final class AnimeController extends AbstractController
         $anime = $this->animeRepository->find($id);
 
         if (!$anime) {
-            throw $this->createNotFoundException('Anime non trouvé');
+            throw $this->createNotFoundException('Anime not found');
         }
 
+        // Check if the user has already rated the anime
         $starredAnime = $user->getStarredAnime($anime);
 
-        if(!$starredAnime) {
+        if (!$starredAnime) {
             $starredAnime = new StarredAnime();
             $starredAnime->setUser($user);
             $starredAnime->setAnime($anime);
