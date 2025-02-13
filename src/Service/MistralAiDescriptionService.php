@@ -16,6 +16,7 @@ class MistralAiDescriptionService implements DescriptionService
 
     private string $url = "https://api.mistral.ai/v1/chat/completions";
     private String $apiKey = "ID14ShA91efzNQgeCciFscSQ0xHf9PqA";
+
     private string $shortPromptFormatFR = '{
     "model": "mistral-large-latest",
     "messages": [

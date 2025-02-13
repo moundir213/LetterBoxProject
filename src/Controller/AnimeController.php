@@ -13,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class AnimeController extends AbstractController
 {
@@ -47,6 +48,29 @@ final class AnimeController extends AbstractController
             ];
         }
         return $this->render('anime/all.html.twig', [
+            'animes' => $animesData,
+            'isAuthenticated' => $this->getUser() !== null,
+        ]);
+    }
+
+    #[Route('/anime/liked', name: 'liked_anime')]
+    #[IsGranted('ROLE_USER')]
+    public function showLikedAnimes(): Response {
+        /** @var User $user */
+        $user = $this->getUser();
+        $animes = $user->getLikedAnimes();
+        $animesData = [];
+
+        foreach ($animes as $anime) {
+            $animesData[] = [
+                'id' => $anime->getId(),
+                'title' => $anime->getTitle(),
+                'picture' => $anime->getPicture(),
+                'isLiked' => $anime->getUsersLiking()->contains($user),
+                'stars' => min(5,$anime->getStarsOfUser($user))
+            ];
+        }
+        return $this->render('anime/like.html.twig', [
             'animes' => $animesData,
             'isAuthenticated' => $this->getUser() !== null,
         ]);
@@ -95,7 +119,9 @@ final class AnimeController extends AbstractController
         ]);
     }
 
+
     #[Route('/anime/{id}/like', name: 'anime_like',methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function likeAnime(int $id, EntityManagerInterface $entityManager, Request $request): Response
     {
         $anime = $this->animeRepository->find($id);
@@ -117,6 +143,7 @@ final class AnimeController extends AbstractController
     }
 
     #[Route('/anime/{id}/dislike', name: 'anime_dislike', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function disLikeAnime(int $id, EntityManagerInterface $entityManager, Request $request): Response
     {
         $anime = $this->animeRepository->find($id);
@@ -137,6 +164,7 @@ final class AnimeController extends AbstractController
     }
 
     #[Route('/anime/{id}/comment', name: 'anime_comment', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function addCommentOnAnime(Request $request, int $id): Response
     {
         /** @var User $user */
@@ -153,6 +181,7 @@ final class AnimeController extends AbstractController
     }
 
     #[Route('/anime/{id}/rate', name: 'anime_rate', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function starAnime(EntityManagerInterface $entityManager,Request $request, int $id): Response
     {
         /** @var User $user */
